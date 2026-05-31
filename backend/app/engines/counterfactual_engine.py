@@ -17,7 +17,7 @@ class CounterfactualEngine:
     def build_graph(self, events: List[Dict], relationships: List[Dict]) -> nx.DiGraph:
         G = nx.DiGraph()
         for e in events:
-            G.add_node(e["id"], label=e.get("label", e["id"]), **e)
+            G.add_node(e["id"], label=e.get("label", ""), event_type=e.get("event_type", ""), description=e.get("description", ""), importance=e.get("importance", 5))
         for r in relationships:
             G.add_edge(r["source_id"], r["target_id"],
                        strength=r.get("strength", 1.0),
@@ -140,3 +140,4 @@ class CounterfactualEngine:
         severity = "catastrophic" if total_affected > 10 else "significant" if total_affected > 5 else "moderate"
         stab_desc = "increasing" if stab_delta > 5 else "decreasing" if stab_delta < -5 else "roughly maintaining"
         return f"Removing '{label}' causes {severity} timeline collapse, affecting {total_affected} event(s) and {stab_desc} stability by {stab_delta:+.1f} points."
+
