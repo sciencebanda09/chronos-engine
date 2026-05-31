@@ -35,7 +35,7 @@ class InfluenceEngine:
     def build_graph(self, events: List[Dict], relationships: List[Dict]) -> nx.DiGraph:
         G = nx.DiGraph()
         for e in events:
-            G.add_node(e["id"], label=e.get("label", e["id"]), **e)
+            G.add_node(e["id"], label=e.get("label", ""), event_type=e.get("event_type", ""), description=e.get("description", ""), importance=e.get("importance", 5))
         for r in relationships:
             G.add_edge(
                 r["source_id"],
@@ -218,3 +218,4 @@ class InfluenceEngine:
         if not is_dag:
             lines.append(f"⚠ Universe contains {graph_metrics.get('cycle_count', 0)} causal cycle(s) — paradoxes possible.")
         return " | ".join(lines)
+
