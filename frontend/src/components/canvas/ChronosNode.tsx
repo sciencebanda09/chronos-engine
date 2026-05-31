@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { NodeData } from '@/types';
@@ -9,7 +9,15 @@ const EVENT_TYPE_ICONS: Record<string, string> = {
   terminal: '◉',
   decision: '◆',
   paradox: '⚠',
-  standard: '●',
+  standard: '◎',
+};
+
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  origin: '#00ff88',
+  terminal: '#ff4466',
+  decision: '#ffaa00',
+  paradox: '#cc44ff',
+  standard: '#00d4ff',
 };
 
 export const ChronosNode = memo(({ data, selected, id }: NodeProps) => {
@@ -18,15 +26,15 @@ export const ChronosNode = memo(({ data, selected, id }: NodeProps) => {
   const isHighlighted = highlightedNodes.has(id);
   const isCollapsing = collapsingNodes.has(id);
 
-  const baseColor = nodeData.color || '#00d4ff';
-  const isParadox = nodeData.is_paradox_node;
+  const baseColor = EVENT_TYPE_COLORS[nodeData.event_type] || nodeData.color || '#00d4ff';
+  const isParadox = nodeData.is_paradox_node || nodeData.event_type === 'paradox';
 
   const borderColor = isParadox
     ? '#cc44ff'
     : isHighlighted
     ? '#ffaa00'
     : selected
-    ? '#00d4ff'
+    ? baseColor
     : `${baseColor}55`;
 
   const glowColor = isParadox
@@ -34,8 +42,18 @@ export const ChronosNode = memo(({ data, selected, id }: NodeProps) => {
     : isHighlighted
     ? 'rgba(255,170,0,0.4)'
     : selected
-    ? 'rgba(0,212,255,0.4)'
+    ? `${baseColor}66`
     : `${baseColor}33`;
+
+  const bgGradient = isParadox
+    ? 'linear-gradient(135deg, rgba(30,10,40,0.97) 0%, rgba(20,5,30,0.90) 100%)'
+    : nodeData.event_type === 'origin'
+    ? 'linear-gradient(135deg, rgba(0,30,15,0.97) 0%, rgba(10,15,30,0.90) 100%)'
+    : nodeData.event_type === 'terminal'
+    ? 'linear-gradient(135deg, rgba(30,5,10,0.97) 0%, rgba(10,15,30,0.90) 100%)'
+    : nodeData.event_type === 'decision'
+    ? 'linear-gradient(135deg, rgba(30,20,5,0.97) 0%, rgba(10,15,30,0.90) 100%)'
+    : 'linear-gradient(135deg, rgba(10,15,30,0.95) 0%, rgba(10,15,30,0.85) 100%)';
 
   return (
     <div
@@ -43,7 +61,7 @@ export const ChronosNode = memo(({ data, selected, id }: NodeProps) => {
       style={{
         minWidth: 160,
         maxWidth: 220,
-        background: `linear-gradient(135deg, rgba(10,15,30,0.95) 0%, rgba(10,15,30,0.85) 100%)`,
+        background: bgGradient,
         border: `1.5px solid ${borderColor}`,
         borderRadius: 10,
         boxShadow: `0 0 12px ${glowColor}, inset 0 0 30px ${glowColor}20`,
@@ -67,17 +85,14 @@ export const ChronosNode = memo(({ data, selected, id }: NodeProps) => {
 
       {/* Header */}
       <div className="flex items-center gap-2 mb-1">
-        <span
-          className="text-[10px] font-bold"
-          style={{ color: baseColor }}
-        >
-          {EVENT_TYPE_ICONS[nodeData.event_type] || '●'}
+        <span className="text-[10px] font-bold" style={{ color: baseColor }}>
+          {EVENT_TYPE_ICONS[nodeData.event_type] || '◎'}
         </span>
         <span
           className="text-[10px] uppercase tracking-widest font-mono"
           style={{ color: `${baseColor}88` }}
         >
-          {nodeData.event_type}
+          {nodeData.event_type || 'standard'}
         </span>
         {isParadox && (
           <span className="ml-auto text-[9px] font-mono text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1.5 rounded">
@@ -128,21 +143,13 @@ export const ChronosNode = memo(({ data, selected, id }: NodeProps) => {
         type="target"
         position={Position.Left}
         className="!w-2.5 !h-2.5 !rounded-full !border-2"
-        style={{
-          background: '#050810',
-          borderColor: baseColor,
-          left: -6,
-        }}
+        style={{ background: '#050810', borderColor: baseColor, left: -6 }}
       />
       <Handle
         type="source"
         position={Position.Right}
         className="!w-2.5 !h-2.5 !rounded-full !border-2"
-        style={{
-          background: '#050810',
-          borderColor: baseColor,
-          right: -6,
-        }}
+        style={{ background: '#050810', borderColor: baseColor, right: -6 }}
       />
     </div>
   );

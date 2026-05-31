@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useRef } from 'react';
 import { useChronosStore } from '@/store';
 import { api } from '@/utils/api';
@@ -37,7 +37,8 @@ export function BottomBar() {
     if (!tl) tl = await compileTimeline();
     if (!tl) return;
     setSimulatorState('playing');
-    setCurrentStep((prev) => (prev >= tl.total_steps ? 1 : prev + 1));
+    const nextStep = currentStep >= (tl.total_steps ?? 0) ? 1 : currentStep + 1;
+    setCurrentStep(nextStep);
   };
 
   const pause = () => {
@@ -52,18 +53,18 @@ export function BottomBar() {
     if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
-  // Auto-advance when playing
   useEffect(() => {
     if (simulatorState === 'playing') {
       intervalRef.current = setInterval(() => {
-        setCurrentStep((prev) => {
-          if (prev >= totalSteps) {
-            setSimulatorState('paused');
-            clearInterval(intervalRef.current);
-            return prev;
-          }
-          return prev + 1;
-        });
+        const store = useChronosStore.getState();
+        const step = store.currentStep;
+        const total = store.totalSteps;
+        if (step >= total) {
+          store.setSimulatorState('paused');
+          clearInterval(intervalRef.current);
+        } else {
+          store.setCurrentStep(step + 1);
+        }
       }, 1000);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
@@ -71,12 +72,12 @@ export function BottomBar() {
 
   const stepForward = () => {
     if (!compiledTimeline) return;
-    setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+    setCurrentStep(Math.min(currentStep + 1, totalSteps));
     if (simulatorState === 'stopped') setSimulatorState('paused');
   };
 
   const stepBack = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 0));
+    setCurrentStep(Math.max(currentStep - 1, 0));
     if (simulatorState === 'stopped') setSimulatorState('paused');
   };
 
@@ -88,7 +89,6 @@ export function BottomBar() {
 
   return (
     <div className="h-11 border-t border-chronos-border bg-chronos-surface/90 backdrop-blur-md flex items-center gap-3 px-4 shrink-0 z-20">
-      {/* Controls */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => setCurrentStep(1)}
@@ -149,7 +149,6 @@ export function BottomBar() {
 
       <div className="w-px h-5 bg-chronos-border" />
 
-      {/* Progress */}
       <div className="flex items-center gap-2 flex-1">
         <div className="flex-1 progress-bar cursor-pointer" onClick={(e) => {
           if (!hasTl) return;
@@ -163,13 +162,12 @@ export function BottomBar() {
           />
         </div>
         <span className="text-[10px] font-mono text-chronos-muted whitespace-nowrap">
-          {hasTl ? `${currentStep} / ${totalSteps}` : '—'}
+          {hasTl ? `${currentStep} / ${totalSteps}` : '-'}
         </span>
       </div>
 
       <div className="w-px h-5 bg-chronos-border" />
 
-      {/* Step description */}
       <div className="text-[11px] font-mono text-chronos-muted truncate max-w-[300px]">
         {currentStepData ? currentStepData.description : (
           isPlaying ? 'Simulating...' : 'Press Play to simulate universe timeline'
@@ -178,7 +176,6 @@ export function BottomBar() {
 
       <div className="w-px h-5 bg-chronos-border" />
 
-      {/* State badge */}
       <div className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
         isPlaying
           ? 'text-green-400 bg-green-500/10 border-green-500/20'
@@ -186,7 +183,7 @@ export function BottomBar() {
           ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20'
           : 'text-chronos-muted bg-chronos-border/30 border-chronos-border'
       }`}>
-        {isPlaying ? '▶ PLAYING' : hasTl ? '⏸ PAUSED' : '■ STOPPED'}
+        {isPlaying ? 'PLAYING' : hasTl ? 'PAUSED' : 'STOPPED'}
       </div>
     </div>
   );

@@ -1,9 +1,10 @@
-'use client';
-import { useEffect, useState } from 'react';
+﻿'use client';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useChronosStore } from '@/store';
 import { api } from '@/utils/api';
-import { Brain, CheckCircle, AlertCircle, Cpu } from 'lucide-react';
+import { Brain, CheckCircle, AlertCircle, Cpu, Loader } from 'lucide-react';
+import { useReactFlow } from '@xyflow/react';
 import toast from 'react-hot-toast';
 
 const EXAMPLE_TEXTS = [
@@ -30,6 +31,12 @@ export function ParserPanel() {
   const [loading, setLoading] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState<any>(null);
   const [importing, setImporting] = useState(false);
+  const [compiling, setCompiling] = useState(false);
+
+  let reactFlowInstance: any = null;
+  try {
+    reactFlowInstance = useReactFlow();
+  } catch {}
 
   useEffect(() => {
     api.parser.status().then(setOllamaStatus).catch(() => {});
@@ -50,6 +57,15 @@ export function ParserPanel() {
     }
   };
 
+  const autoCompile = async (universeId: string) => {
+    setCompiling(true);
+    try {
+      await api.universes.compile(universeId);
+      toast.success('Universe compiled and analyzed!');
+    } catch {}
+    finally { setCompiling(false); }
+  };
+
   const importToUniverse = async () => {
     if (!result || !activeUniverse) return;
     setImporting(true);
@@ -61,6 +77,14 @@ export function ParserPanel() {
       const updated = await api.universes.get(activeUniverse.id);
       setActiveUniverse(updated);
       toast.success('Universe populated with parsed events!');
+
+      // Auto zoom to fit
+      setTimeout(() => {
+        try { reactFlowInstance?.fitView({ padding: 0.15, duration: 800 }); } catch {}
+      }, 500);
+
+      // Auto compile
+      await autoCompile(activeUniverse.id);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -73,7 +97,7 @@ export function ParserPanel() {
     setImporting(true);
     try {
       const u = await api.universes.create({
-        name: result.universe_name || 'Parsed Universe',
+        name: result.universe_name || universeName || 'Parsed Universe',
         description: `Auto-generated from AI parser`,
       });
       await api.universes.sync(u.id, {
@@ -81,6 +105,9 @@ export function ParserPanel() {
         relationships: result.relationships,
       });
       toast.success(`Universe "${u.name}" created!`);
+
+      // Auto compile before navigating
+      await autoCompile(u.id);
       router.push(`/universe/${u.id}`);
     } catch (e: any) {
       toast.error(e.message);
@@ -88,6 +115,8 @@ export function ParserPanel() {
       setImporting(false);
     }
   };
+
+  const isImporting = importing || compiling;
 
   return (
     <div className="p-4 space-y-4">
@@ -107,8 +136,8 @@ export function ParserPanel() {
           {ollamaStatus.ollama_online
             ? ollamaStatus.model_available
               ? `${ollamaStatus.target_model} ready`
-              : `Ollama online — run: ollama pull ${ollamaStatus.target_model}`
-            : 'Ollama offline — using fallback parser'}
+              : `Ollama online - run: ollama pull ${ollamaStatus.target_model}`
+            : 'Ollama offline - using fallback parser'}
         </div>
       )}
 
@@ -154,7 +183,7 @@ export function ParserPanel() {
         className="w-full py-2.5 bg-chronos-accent/15 hover:bg-chronos-accent/25 border border-chronos-accent/30 rounded-lg text-chronos-accent text-[11px] font-mono transition-all disabled:opacity-40 flex items-center justify-center gap-2"
       >
         {loading ? (
-          <><span className="animate-spin">⟳</span> Parsing with AI...</>
+          <><Loader size={12} className="animate-spin" /> Parsing with AI...</>
         ) : (
           <><Cpu size={12} /> Parse Story into Universe</>
         )}
@@ -181,7 +210,7 @@ export function ParserPanel() {
                 <div className="text-[9px] text-chronos-muted">Relations</div>
               </div>
               <div>
-                <div className="text-[11px] font-mono text-chronos-accent">{result.model}</div>
+                <div className="text-[11px] font-mono text-chronos-accent truncate">{result.model}</div>
                 <div className="text-[9px] text-chronos-muted">Model</div>
               </div>
             </div>
@@ -205,20 +234,26 @@ export function ParserPanel() {
             {activeUniverse && (
               <button
                 onClick={importToUniverse}
-                disabled={importing}
-                className="flex-1 py-2 text-[11px] font-mono border border-chronos-accent/30 text-chronos-accent bg-chronos-accent/10 hover:bg-chronos-accent/20 rounded-lg transition-all disabled:opacity-40"
+                disabled={isImporting}
+                className="flex-1 py-2 text-[11px] font-mono border border-chronos-accent/30 text-chronos-accent bg-chronos-accent/10 hover:bg-chronos-accent/20 rounded-lg transition-all disabled:opacity-40 flex items-center justify-center gap-1"
               >
-                {importing ? 'Importing...' : '→ Import to Current Universe'}
+                {isImporting ? <><Loader size={10} className="animate-spin" /> Processing...</> : 'Import to Current Universe'}
               </button>
             )}
             <button
               onClick={createAndImport}
-              disabled={importing}
-              className="flex-1 py-2 text-[11px] font-mono border border-green-500/30 text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-all disabled:opacity-40"
+              disabled={isImporting}
+              className="flex-1 py-2 text-[11px] font-mono border border-green-500/30 text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg transition-all disabled:opacity-40 flex items-center justify-center gap-1"
             >
-              {importing ? 'Creating...' : '+ Create New Universe'}
+              {isImporting ? <><Loader size={10} className="animate-spin" /> Processing...</> : '+ Create New Universe'}
             </button>
           </div>
+
+          {compiling && (
+            <div className="text-[10px] font-mono text-chronos-accent/70 text-center animate-pulse">
+              Auto-compiling universe analysis...
+            </div>
+          )}
         </div>
       )}
     </div>
