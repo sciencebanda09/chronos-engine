@@ -39,11 +39,11 @@ function StepCard({ step, isActive, isPast }: { step: TimelineStep; isActive: bo
         {expanded && (
           <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
             <div className="px-3 pb-3 border-t border-chronos-border/30 pt-2 space-y-1">
-              {step.events_activated.map((e: any) => (
+              {(step.events_activated || []).map((e: any) => (
                 <div key={e.id} className="text-[11px] font-mono">
                   <span className="text-white">{e.label}</span>
                   {e.triggered_by?.length > 0 && (
-                    <span className="text-chronos-muted"> ← {e.triggered_by.map((t: any) => t.from_label).join(', ')}</span>
+                    <span className="text-chronos-muted"> ← {(e.triggered_by || []).map((t: any) => t.from_label).join(', ')}</span>
                   )}
                 </div>
               ))}
@@ -120,7 +120,7 @@ export function TimelinePanel() {
             <div className="flex items-start gap-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
               <AlertTriangle size={12} className="text-yellow-400 mt-0.5 shrink-0" />
               <div className="text-[10px] font-mono text-yellow-300/80 space-y-0.5">
-                {tl.errors.map((e, i) => <div key={i}>{e}</div>)}
+                {(tl.errors || []).map((e, i) => <div key={i}>{e}</div>)}
               </div>
             </div>
           )}
@@ -134,13 +134,13 @@ export function TimelinePanel() {
           <div className="grid grid-cols-2 gap-2">
             <div className="glass rounded p-2">
               <div className="text-[9px] font-mono text-green-400 mb-1 uppercase">Root Events</div>
-              {tl.root_events.map((e: any) => (
+              {(tl.root_events || []).map((e: any) => (
                 <div key={e.id} className="text-[10px] font-mono text-white truncate">• {e.label}</div>
               ))}
             </div>
             <div className="glass rounded p-2">
               <div className="text-[9px] font-mono text-red-400 mb-1 uppercase">Terminal Events</div>
-              {tl.terminal_events.map((e: any) => (
+              {(tl.terminal_events || []).map((e: any) => (
                 <div key={e.id} className="text-[10px] font-mono text-white truncate">• {e.label}</div>
               ))}
             </div>
@@ -150,7 +150,7 @@ export function TimelinePanel() {
           <div>
             <div className="text-[10px] font-mono text-chronos-muted mb-2 uppercase">Propagation Steps</div>
             <div className="max-h-[400px] overflow-y-auto pr-1">
-              {tl.steps.map((step: TimelineStep) => (
+              {(tl.steps || []).map((step: TimelineStep) => (
                 <StepCard
                   key={step.step}
                   step={step}
