@@ -20,7 +20,7 @@ class MultiverseEngine:
         """Create a new universe branch from a divergence point."""
         G = nx.DiGraph()
         for e in events:
-            G.add_node(e["id"], **e)
+            G.add_node(e["id"], label=e.get("label", ""), event_type=e.get("event_type", ""), description=e.get("description", ""))
         for r in relationships:
             G.add_edge(r["source_id"], r["target_id"], **r)
 
@@ -133,7 +133,7 @@ class KnowledgeTracker:
     def build_graph(self, events: List[Dict], relationships: List[Dict]) -> nx.DiGraph:
         G = nx.DiGraph()
         for e in events:
-            G.add_node(e["id"], label=e.get("label", e["id"]), **e)
+            G.add_node(e["id"], label=e.get("label", ""), event_type=e.get("event_type", ""), description=e.get("description", ""))
         for r in relationships:
             G.add_edge(r["source_id"], r["target_id"])
         return G
@@ -221,3 +221,4 @@ class KnowledgeTracker:
         if not bootstrap and not orphan:
             parts.append("All knowledge traces back to an origin. No self-creating information detected.")
         return " ".join(parts)
+
