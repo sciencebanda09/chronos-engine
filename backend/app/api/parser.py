@@ -45,8 +45,8 @@ Rules:
 async def parse_story(body: ParseRequest):
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
-    if len(body.text) > 5000:
-        raise HTTPException(status_code=400, detail="Text too long (max 5000 chars)")
+    if len(body.text) > 50000:
+        raise HTTPException(status_code=400, detail="Text too long (max 50000 chars)")
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -264,3 +264,4 @@ async def ollama_status():
         "model_available": False,
         "note": "Start Ollama and run: ollama pull qwen2.5:3b",
     }
+
