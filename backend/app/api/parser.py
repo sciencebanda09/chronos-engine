@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+﻿from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import httpx
@@ -15,15 +15,14 @@ class ParseRequest(BaseModel):
     universe_name: Optional[str] = None
 
 
-SYSTEM_PROMPT = """You are a structural extractor for a causal graph system called Chronos Engine.
+SYSTEM_PROMPT = """You are a causal graph extractor for Chronos Engine.
 
-Your ONLY job is to extract events and causal relationships from text.
-You must return ONLY valid JSON. No explanation. No markdown. No code blocks.
+Return ONLY valid JSON. No explanation. No markdown. No code blocks.
 
 Output format:
 {
   "events": [
-    {"id": "e1", "label": "Event Name", "description": "Brief description", "event_type": "standard"}
+    {"id": "e1", "label": "Short Event Name", "description": "Brief description", "event_type": "standard"}
   ],
   "relationships": [
     {"source_id": "e1", "target_id": "e2", "label": "causes", "strength": 0.9}
@@ -36,8 +35,16 @@ Rules:
 - Relationships must use source_id and target_id matching event ids
 - strength is 0.0 to 1.0 (how strongly one event causes another)
 - event_type options: standard, origin, terminal, decision, paradox
-- Extract ONLY structural information — no reasoning, no paradox analysis
-- If text mentions time travel or loops, extract them structurally without judgment
+- Mark the first event(s) in the chain as "origin" type
+- Mark the last event(s) with no consequences as "terminal" type
+- Mark events involving paradoxes, contradictions, or impossibilities as "paradox" type
+- Mark events involving choices or branching as "decision" type
+- CRITICAL: If the story mentions time travel, loops, bootstrap paradoxes, or circular causation,
+  you MUST create circular relationships in the graph.
+  Example: if event A causes B causes C causes A again, add relationships e1->e2, e2->e3, e3->e1
+- CRITICAL: If someone erases themselves from history, connect the erasure back to the original action
+- CRITICAL: If knowledge comes from the future, connect the future event back to the past event
+- Extract ALL causal relationships, not just sequential ones
 - Return ONLY the JSON object, nothing else"""
 
 
@@ -49,7 +56,7 @@ async def parse_story(body: ParseRequest):
         raise HTTPException(status_code=400, detail="Text too long (max 50000 chars)")
 
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=300.0) as client:
             response = await client.post(
                 f"{settings.OLLAMA_URL}/api/generate",
                 json={
@@ -109,19 +116,16 @@ async def parse_story(body: ParseRequest):
 
 
 def _extract_json(text: str) -> Optional[dict]:
-    # Try direct parse
     try:
         return json.loads(text.strip())
     except Exception:
         pass
-    # Try extracting JSON from markdown code block
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         try:
             return json.loads(match.group(1))
         except Exception:
             pass
-    # Try finding first { ... } block
     match2 = re.search(r"\{.*\}", text, re.DOTALL)
     if match2:
         try:
@@ -132,7 +136,6 @@ def _extract_json(text: str) -> Optional[dict]:
 
 
 def _fallback_parse(text: str) -> dict:
-    """Simple regex-based fallback if Ollama is unavailable."""
     lines = [l.strip() for l in text.strip().split("\n") if l.strip()]
     events = []
     relationships = []
@@ -148,10 +151,10 @@ def _fallback_parse(text: str) -> dict:
             "id": eid,
             "label": clean[:50],
             "description": f"Extracted from: {clean}",
-            "event_type": "standard",
+            "event_type": "origin" if i == 0 else "terminal" if i == len(lines) - 1 else "standard",
             "pos_x": 200.0,
             "pos_y": i * 120.0,
-            "color": "#00d4ff",
+            "color": _color_for_type("origin" if i == 0 else "standard"),
         })
         if i > 0 and (i - 1) in event_ids:
             relationships.append({
@@ -171,7 +174,7 @@ def _fallback_parse(text: str) -> dict:
         "universe_name": _infer_title(text),
         "event_count": len(events),
         "relationship_count": len(relationships),
-        "note": "Ollama unavailable — used fallback line extraction. Start Ollama for AI parsing.",
+        "note": "Ollama unavailable - used fallback line extraction. Start Ollama for AI parsing.",
     }
 
 
@@ -191,7 +194,6 @@ def _infer_title(text: str) -> str:
 
 
 def _auto_layout(events: list, relationships: list) -> None:
-    """Simple layered layout based on relationship depth."""
     if not events:
         return
     id_to_idx = {e["id"]: i for i, e in enumerate(events)}
@@ -206,6 +208,8 @@ def _auto_layout(events: list, relationships: list) -> None:
 
     layers = {}
     queue = [eid for eid, deg in in_degree.items() if deg == 0]
+    if not queue:
+        queue = [list(in_degree.keys())[0]]
     current_layer = 0
     visited = set()
 
@@ -234,7 +238,6 @@ def _auto_layout(events: list, relationships: list) -> None:
         events[idx]["pos_y"] = float(col * 150 - (count - 1) * 75 + 300)
         layer_pos[layer] += 1
 
-    # Assign positions for any unvisited nodes
     for e in events:
         if e["pos_x"] == 0.0 and e["pos_y"] == 0.0 and e["id"] not in layers:
             e["pos_x"] = float(current_layer * 280 + 100)
@@ -249,11 +252,11 @@ async def ollama_status():
             if r.status_code == 200:
                 models = r.json().get("models", [])
                 model_names = [m.get("name", "") for m in models]
-                qwen_available = any(settings.OLLAMA_MODEL in m for m in model_names)
+                model_available = any(settings.OLLAMA_MODEL in m for m in model_names)
                 return {
                     "ollama_online": True,
                     "target_model": settings.OLLAMA_MODEL,
-                    "model_available": qwen_available,
+                    "model_available": model_available,
                     "available_models": model_names,
                 }
     except Exception:
@@ -262,6 +265,5 @@ async def ollama_status():
         "ollama_online": False,
         "target_model": settings.OLLAMA_MODEL,
         "model_available": False,
-        "note": "Start Ollama and run: ollama pull qwen2.5:3b",
+        "note": "Start Ollama and run: ollama pull qwen2.5:7b",
     }
-
