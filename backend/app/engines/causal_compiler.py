@@ -1,7 +1,7 @@
-"""
-Causal Compiler — Treats universes like source code and compiles them into validated causal models.
+﻿"""
+Causal Compiler - Treats universes like source code and compiles them into validated causal models.
 
-Stages: Parse → Validate → Detect Contradictions → Build Model → Simulate → Calculate Stability
+Stages: Parse -> Validate -> Detect Contradictions -> Build Model -> Simulate -> Calculate Stability
 """
 
 import networkx as nx
@@ -26,7 +26,6 @@ class CausalCompiler:
         warnings = []
         errors = []
 
-        # Stage 1: Parse Graph
         stage1 = self._stage_parse(events, relationships)
         stages.append(stage1)
         if stage1["status"] == "error":
@@ -34,32 +33,26 @@ class CausalCompiler:
 
         G: nx.DiGraph = stage1["graph"]
 
-        # Stage 2: Validate Events
         stage2 = self._stage_validate_events(events, G)
         stages.append(stage2)
         warnings.extend(stage2.get("warnings", []))
         errors.extend(stage2.get("errors", []))
 
-        # Stage 3: Validate Dependencies
         stage3 = self._stage_validate_dependencies(relationships, G)
         stages.append(stage3)
         warnings.extend(stage3.get("warnings", []))
         errors.extend(stage3.get("errors", []))
 
-        # Stage 4: Detect Contradictions
         stage4 = self._stage_detect_contradictions(events, relationships, G)
         stages.append(stage4)
         warnings.extend(stage4.get("warnings", []))
 
-        # Stage 5: Build Causal Model
         stage5 = self._stage_build_model(events, relationships, G)
         stages.append(stage5)
 
-        # Stage 6: Simulate Propagation
         stage6 = self._stage_simulate(events, relationships)
         stages.append(stage6)
 
-        # Stage 7: Calculate Stability
         stage7 = self._stage_stability(events, relationships, stage4.get("paradox_count", 0))
         stages.append(stage7)
 
@@ -85,9 +78,22 @@ class CausalCompiler:
         try:
             G = nx.DiGraph()
             for e in events:
-                G.add_node(e["id"], **e)
+                G.add_node(
+                    e["id"],
+                    label=e.get("label", ""),
+                    event_type=e.get("event_type", ""),
+                    description=e.get("description", ""),
+                    importance=e.get("importance", 5),
+                    timestamp_value=e.get("timestamp_value", 0.0),
+                )
             for r in relationships:
-                G.add_edge(r["source_id"], r["target_id"], **r)
+                G.add_edge(
+                    r["source_id"], r["target_id"],
+                    label=r.get("label", "causes"),
+                    strength=r.get("strength", 1.0),
+                    delay=r.get("delay", 0.0),
+                    relationship_type=r.get("relationship_type", ""),
+                )
             return {
                 "stage": 1,
                 "name": "Parse Graph",
