@@ -56,7 +56,7 @@ class ParadoxEngine:
     def build_graph(self, events: List[Dict], relationships: List[Dict]) -> nx.DiGraph:
         G = nx.DiGraph()
         for e in events:
-            G.add_node(e["id"], label=e.get("label", e["id"]), **e)
+            G.add_node(e["id"], label=e.get("label", ""), event_type=e.get("event_type", ""), description=e.get("description", ""), importance=e.get("importance", 5))
         for r in relationships:
             G.add_edge(
                 r["source_id"],
@@ -300,3 +300,4 @@ class ParadoxEngine:
         density = nx.density(G)
         entropy = (cycle_score * 0.5 + fragmentation * 0.3 + density * 0.2) * 100
         return round(min(100.0, entropy), 2)
+
