@@ -30,7 +30,7 @@ class ConsequenceEngine:
     def build_graph(self, events: List[Dict], relationships: List[Dict]) -> nx.DiGraph:
         G = nx.DiGraph()
         for e in events:
-            G.add_node(e["id"], label=e.get("label", e["id"]), **e)
+            G.add_node(e["id"], label=e.get("label", ""), event_type=e.get("event_type", ""), description=e.get("description", ""), importance=e.get("importance", 5))
         for r in relationships:
             G.add_edge(
                 r["source_id"],
@@ -245,3 +245,4 @@ class ConsequenceEngine:
         if long_term:
             parts.append(f"{len(long_term)} long-term consequence{'s' if len(long_term) > 1 else ''}")
         return f"'{trigger_label}' triggers {', '.join(parts)}, cascading {max_depth} levels deep across {total} total events."
+
